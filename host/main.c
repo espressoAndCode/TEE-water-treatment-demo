@@ -44,69 +44,6 @@ int sod_hydrox_flow_is_on = 0;
 int disinf_flow_is_on = 0;
 
 
-//Getters 
-get_temp_val()
-{
-	return temp_val;
-};
-
-get_ph_val()
-{
-	return ph_val;
-};
-
-get_disinf_val()
-{
-	return disinf_val;
-};
-
-get_path_val()
-{
-	return path_val;
-};
-
-get_sod_hydrox_flow_is_on()
-{
-	return sod_hydrox_flow_is_on;
-};
-
-get_disinf_flow_is_on()
-{
-	return disinf_flow_is_on;
-};
-
-// Setters
-set_temp_val(val)
-{
-	temp_val = val;
-};
-
-set_ph_val(val)
-{
-	ph_val = val;
-};
-
-set_disinf_val(val)
-{
-	disinf_val = val;
-};
-
-set_path_val(val)
-{
-	path_val = val;
-};
-
-set_sod_hydrox_flow_is_on(val)
-{
-	sod_hydrox_flow_is_on = val;
-};
-
-set_disinf_flow_is_on(val)
-{
-	disinf_flow_is_on = val;
-};
-
-
 /* TEE resources */
 struct test_ctx {
 	TEEC_Context ctx;
@@ -137,8 +74,6 @@ void terminate_tee_session(struct test_ctx *ctx)
 	TEEC_CloseSession(&ctx->sess);
 	TEEC_FinalizeContext(&ctx->ctx);
 }
-
-
 
 
 /////////////////////////////////////
