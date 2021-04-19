@@ -35,6 +35,15 @@
 /* For the UUID (found in the TA's h-file(s)) */
 #include <water_treatment_ta.h>
 
+/*Water Treatment Sensor State Variables*/
+int temp_val = 50;
+int ph_val = 0;
+int disinf_val = 0;
+int path_val = 0;
+int sod_hydrox_flow_is_on = 0;
+int disinf_flow_is_on = 0;
+
+
 /* TEE resources */
 struct test_ctx {
 	TEEC_Context ctx;
@@ -67,7 +76,10 @@ void terminate_tee_session(struct test_ctx *ctx)
 }
 
 
-TEEC_Result increment_secure_counter(struct test_ctx *ctx)
+/////////////////////////////////////
+// WATER TREATMENT USERLAND FUNCTIONS
+
+TEEC_Result turn_sodiumhydroxide_on(struct test_ctx *ctx)
 {
 	TEEC_Operation op;
 	uint32_t origin;
@@ -79,29 +91,25 @@ TEEC_Result increment_secure_counter(struct test_ctx *ctx)
 	 * Prepare the argument. Pass a value in the first parameter,
 	 * the remaining three parameters are unused.
 	 */
-	op.paramTypes = TEEC_PARAM_TYPES(TEEC_VALUE_INOUT, TEEC_NONE,
-					 TEEC_NONE, TEEC_NONE);
-	op.params[0].value.a = 42;
+	op.paramTypes = TEEC_PARAM_TYPES(TEEC_VALUE_INOUT, TEEC_VALUE_INOUT,
+					 TEEC_VALUE_INOUT, TEEC_VALUE_INOUT);
+	op.params[0].value.a = temp_val;
+	op.params[1].value.a = 500;
+	op.params[2].value.a = 600;
+	op.params[3].value.a = 700;
 
 	/*
-	 * TA_WATER_TREATMENT_CMD_INC_VALUE is the actual function in the TA to be
+	 * TA_WATER_TREATMENT_CMD_SOD_HYDROX_ON is the actual function in the TA to be
 	 * called.
 	 */
 	printf("Invoking TA to increment %d\n", op.params[0].value.a);
-	res = TEEC_InvokeCommand(&ctx->sess, TA_WATER_TREATMENT_CMD_INC_VALUE, &op,
+	res = TEEC_InvokeCommand(&ctx->sess, TA_WATER_TREATMENT_CMD_SOD_HYDROX_ON, &op,
 				 &origin);
 	if (res != TEEC_SUCCESS)
 		errx(1, "TEEC_InvokeCommand failed with code 0x%x origin 0x%x",
 			res, origin);
 	printf("TA incremented value to %d\n", op.params[0].value.a);
-}
-
-/////////////////////////////////////
-// WATER TREATMENT USERLAND FUNCTIONS
-
-TEEC_Result turn_sodiumhydroxide_on(struct test_ctx *ctx)
-{
-	//implement this
+	temp_val = op.params[0].value.a;
 }
 
 TEEC_Result turn_sodiumhydroxide_off(struct test_ctx *ctx)
@@ -152,7 +160,9 @@ int main (void)
 {
 
 	printf("\nStarting main function\n");
-	invoke_ta(increment_secure_counter);
+	invoke_ta(turn_sodiumhydroxide_on);
+	invoke_ta(turn_sodiumhydroxide_on);
+	invoke_ta(turn_sodiumhydroxide_on);
 	printf("\nFinished main function\n");
 
 
