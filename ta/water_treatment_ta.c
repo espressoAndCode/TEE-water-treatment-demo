@@ -168,6 +168,8 @@ static TEE_Result sod_hydrox_on(uint32_t param_types,
 	params[0].value.a++;
 	IMSG("Increase value to: %u", params[0].value.a);
 
+	IMSG("Max Temp Value is: %d", get_temp_dev_max());
+
 	return TEE_SUCCESS;
 }
 
