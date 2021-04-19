@@ -37,74 +37,74 @@
 
 /*Water Treatment Sensor State Variables*/
 int temp_val = 50;
-int ph_val = 0;
-int disinf_val = 0;
-int path_val = 0;
-int sod_hydrox_flow_is_on = 0;
-int disinf_flow_is_on = 0;
+int ph_val = 60;
+int disinf_val = 70;
+int path_val = 80;
+// int sod_hydrox_flow_is_on = 0;
+// int disinf_flow_is_on = 0;
 
 
 //Getters 
-get_temp_val()
+int get_temp_val()
 {
 	return temp_val;
 };
 
-get_ph_val()
+int get_ph_val()
 {
 	return ph_val;
 };
 
-get_disinf_val()
+int get_disinf_val()
 {
 	return disinf_val;
 };
 
-get_path_val()
+int get_path_val()
 {
 	return path_val;
 };
 
-get_sod_hydrox_flow_is_on()
-{
-	return sod_hydrox_flow_is_on;
-};
+// int get_sod_hydrox_flow_is_on()
+// {
+// 	return sod_hydrox_flow_is_on;
+// };
 
-get_disinf_flow_is_on()
-{
-	return disinf_flow_is_on;
-};
+// int get_disinf_flow_is_on()
+// {
+// 	return disinf_flow_is_on;
+// };
 
 // Setters
-set_temp_val(val)
+void set_temp_val(int val)
 {
 	temp_val = val;
 };
 
-set_ph_val(val)
+void set_ph_val(int val)
 {
 	ph_val = val;
 };
 
-set_disinf_val(val)
+void set_disinf_val(int val)
 {
 	disinf_val = val;
 };
 
-set_path_val(val)
+void set_path_val(int val)
 {
 	path_val = val;
 };
 
-set_sod_hydrox_flow_is_on(val)
-{
-	sod_hydrox_flow_is_on = val;
-};
+// void set_sod_hydrox_flow_is_on(val)
+// {
+// 	sod_hydrox_flow_is_on = val;
+// };
 
-set_disinf_flow_is_on(val)
-{
-	disinf_flow_is_on = val;
-};
+// void set_disinf_flow_is_on(val)
+// {
+// 	disinf_flow_is_on = val;
+// };
 
 
 /* TEE resources */
@@ -152,55 +152,136 @@ TEEC_Result turn_sodiumhydroxide_on(struct test_ctx *ctx)
 
 	memset(&op, 0, sizeof(op));
 
-	/*
-	 * Prepare the argument. Pass a value in the first parameter,
-	 * the remaining three parameters are unused.
-	 */
 	op.paramTypes = TEEC_PARAM_TYPES(TEEC_VALUE_INOUT, TEEC_VALUE_INOUT,
 					 TEEC_VALUE_INOUT, TEEC_VALUE_INOUT);
-	op.params[0].value.a = temp_val;
-	op.params[1].value.a = 500;
-	op.params[2].value.a = 600;
-	op.params[3].value.a = 700;
+	op.params[0].value.a = get_temp_val();
+	op.params[1].value.a = get_ph_val();
+	op.params[2].value.a = get_disinf_val();
+	op.params[3].value.a = get_path_val();
+
 
 	/*
-	 * TA_WATER_TREATMENT_CMD_SOD_HYDROX_ON is the actual function in the TA to be
-	 * called.
-	 */
-	printf("Invoking TA to increment %d\n", op.params[0].value.a);
+	* TA_WATER_TREATMENT_CMD_SOD_HYDROX_ON is the actual function in the TA to be
+	* called.
+	*/
+	printf("Invoking TA to turn sodium hydroxide pump on.\n");
 	res = TEEC_InvokeCommand(&ctx->sess, TA_WATER_TREATMENT_CMD_SOD_HYDROX_ON, &op,
-				 &origin);
-	if (res != TEEC_SUCCESS)
+				&origin);
+	if (res != TEEC_SUCCESS){
 		errx(1, "TEEC_InvokeCommand failed with code 0x%x origin 0x%x",
 			res, origin);
-	printf("TA incremented value to %d\n", op.params[0].value.a);
-	temp_val = op.params[0].value.a;
+	}
+	if (op.params[0].value.a == 0 && op.params[2].value.a == 0 && op.params[3].value.a == 0){
+		printf("Sodium hydroxide pump value is now %d\n", op.params[1].value.a);
+	}else{
+		printf("*** FAILURE ***");
+	}
 }
 
 TEEC_Result turn_sodiumhydroxide_off(struct test_ctx *ctx)
 {
-	//implement this
+	TEEC_Operation op;
+	uint32_t origin;
+	TEEC_Result res;
+
+	memset(&op, 0, sizeof(op));
+
+	op.paramTypes = TEEC_PARAM_TYPES(TEEC_VALUE_INOUT, TEEC_VALUE_INOUT,
+					 TEEC_VALUE_INOUT, TEEC_VALUE_INOUT);
+	op.params[0].value.a = get_temp_val();
+	op.params[1].value.a = get_ph_val();
+	op.params[2].value.a = get_disinf_val();
+	op.params[3].value.a = get_path_val();
+
+
+	/*
+	* TA_WATER_TREATMENT_CMD_SOD_HYDROX_ON is the actual function in the TA to be
+	* called.
+	*/
+	printf("Invoking TA to turn sodium hydroxide pump off.\n");
+	res = TEEC_InvokeCommand(&ctx->sess, TA_WATER_TREATMENT_CMD_SOD_HYDROX_OFF, &op,
+				&origin);
+	if (res != TEEC_SUCCESS){
+		errx(1, "TEEC_InvokeCommand failed with code 0x%x origin 0x%x",
+			res, origin);
+	}
+	if (op.params[0].value.a == 0 && op.params[2].value.a == 0 && op.params[3].value.a == 0){
+		printf("Sodium hydroxide pump value is now %d\n", op.params[1].value.a);
+	}else{
+		printf("*** FAILURE ***");
+	}
 }
 
 TEEC_Result turn_disinfectant_on(struct test_ctx *ctx)
 {
-	//implement this
+	TEEC_Operation op;
+	uint32_t origin;
+	TEEC_Result res;
+
+	memset(&op, 0, sizeof(op));
+
+	op.paramTypes = TEEC_PARAM_TYPES(TEEC_VALUE_INOUT, TEEC_VALUE_INOUT,
+					 TEEC_VALUE_INOUT, TEEC_VALUE_INOUT);
+	op.params[0].value.a = get_temp_val();
+	op.params[1].value.a = get_ph_val();
+	op.params[2].value.a = get_disinf_val();
+	op.params[3].value.a = get_path_val();
+
+
+	/*
+	* TA_WATER_TREATMENT_CMD_DISINFECTANT_ON is the actual function in the TA to be
+	* called.
+	*/
+	printf("Invoking TA to turn disinfectant pump on.\n");
+	res = TEEC_InvokeCommand(&ctx->sess, TA_WATER_TREATMENT_CMD_DISINFECTANT_ON, &op,
+				&origin);
+	if (res != TEEC_SUCCESS){
+		errx(1, "TEEC_InvokeCommand failed with code 0x%x origin 0x%x",
+			res, origin);
+	}
+	if (op.params[0].value.a == 0 && op.params[1].value.a == 0 && op.params[3].value.a == 0){
+		printf("Disinfectant pump value is now %d\n", op.params[2].value.a);
+	}else{
+		printf("*** FAILURE ***");
+	}
 }
 
 TEEC_Result turn_disinfectant_off(struct test_ctx *ctx)
 {
-	//implement this
+	TEEC_Operation op;
+	uint32_t origin;
+	TEEC_Result res;
+
+	memset(&op, 0, sizeof(op));
+
+	op.paramTypes = TEEC_PARAM_TYPES(TEEC_VALUE_INOUT, TEEC_VALUE_INOUT,
+					 TEEC_VALUE_INOUT, TEEC_VALUE_INOUT);
+	op.params[0].value.a = get_temp_val();
+	op.params[1].value.a = get_ph_val();
+	op.params[2].value.a = get_disinf_val();
+	op.params[3].value.a = get_path_val();
+
+
+	/*
+	* TA_WATER_TREATMENT_CMD_DISINFECTANT_OFF is the actual function in the TA to be
+	* called.
+	*/
+	printf("Invoking TA to turn disinfectant pump on.\n");
+	res = TEEC_InvokeCommand(&ctx->sess, TA_WATER_TREATMENT_CMD_DISINFECTANT_OFF, &op,
+				&origin);
+	if (res != TEEC_SUCCESS){
+		errx(1, "TEEC_InvokeCommand failed with code 0x%x origin 0x%x",
+			res, origin);
+	}
+	if (op.params[0].value.a == 0 && op.params[1].value.a == 0 && op.params[3].value.a == 0){
+		printf("Disinfectant pump value is now %d\n", op.params[2].value.a);
+	}else{
+		printf("*** FAILURE ***");
+	}
 }
 
 
-
-
-
-
-
-
-
-
+/* Lambda function to pass in different functions */
 
 int invoke_ta(TEEC_Result (*func)(struct test_ctx *ctx))
 {
@@ -212,23 +293,21 @@ int invoke_ta(TEEC_Result (*func)(struct test_ctx *ctx))
 	// increment_secure_counter(&ctx);
 	(*func)(&ctx);
 
-	printf("\nWe're done, close and release TEE resources\n");
+	printf("We're done, close and release TEE resources\n\n");
 	terminate_tee_session(&ctx);
 
 	return 0;
 }
 
-
-
-
 int main (void)
 {
 
-	printf("\nStarting main function\n");
+	printf("\nStarting water treatment TAI demo\n");
 	invoke_ta(turn_sodiumhydroxide_on);
-	invoke_ta(turn_sodiumhydroxide_on);
-	invoke_ta(turn_sodiumhydroxide_on);
-	printf("\nFinished main function\n");
+	invoke_ta(turn_sodiumhydroxide_off);
+	invoke_ta(turn_disinfectant_on);
+	invoke_ta(turn_disinfectant_off);
+	printf("\nFinished water treatment TAI demo\n");
 
 
 }

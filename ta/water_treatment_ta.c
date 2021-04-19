@@ -40,46 +40,73 @@ int disinf_dev_max = 100;
 int pathogen_dev_min = 0;
 int pathogen_dev_max = 100;
 
+/* State variables for chemical solenoid valves */
+int sod_hydrox_flow_is_on = 0;
+int disinf_flow_is_on = 0;
+
 //Getters - there are no setters. Values set at compile time.
-get_temp_dev_min()
+int get_temp_dev_min()
 {
 	return temp_dev_min;
 };
 
-get_temp_dev_max()
+int get_temp_dev_max()
 {
 	return temp_dev_max;
 };
 
-get_ph_dev_min()
+int get_ph_dev_min()
 {
 	return ph_dev_min;
 };
 
-get_ph_dev_max()
+int get_ph_dev_max()
 {
 	return ph_dev_max;
 };
 
-get_disinf_dev_min()
+int get_disinf_dev_min()
 {
 	return disinf_dev_min;
 };
 
-get_disinf_dev_max()
+int get_disinf_dev_max()
 {
 	return disinf_dev_max;
 };
 
-get_pathogen_dev_min()
+int get_pathogen_dev_min()
 {
 	return pathogen_dev_min;
 };
 
-get_pathogen_dev_max()
+int get_pathogen_dev_max()
 {
 	return pathogen_dev_max;
 };
+
+int get_sod_hydrox_flow()
+{
+	return sod_hydrox_flow_is_on;
+};
+
+int get_disinf_flow()
+{
+	return disinf_flow_is_on;
+};
+
+
+
+// int toggle_sod_hydrox_flow()
+// {
+// 	sod_hydrox_flow_is_on = !sod_hydrox_flow_is_on;
+// 	return get_sod_hydrox_flow();
+// };
+
+// int toggle_disinf_flow()
+// {
+// 	return disinf_flow_is_on = !disinf_flow_is_on;
+// };
 
 
 /*
@@ -130,7 +157,7 @@ TEE_Result TA_OpenSessionEntryPoint(uint32_t param_types,
 	 * The DMSG() macro is non-standard, TEE Internal API doesn't
 	 * specify any means to logging from a TA.
 	 */
-	IMSG("Water treatment!\n");
+	IMSG("\n\n***** Secure water treatment process invoked *****\n");
 
 	/* If return value != TEE_SUCCESS the session will not be created. */
 	return TEE_SUCCESS;
@@ -143,7 +170,7 @@ TEE_Result TA_OpenSessionEntryPoint(uint32_t param_types,
 void TA_CloseSessionEntryPoint(void __maybe_unused *sess_ctx)
 {
 	(void)&sess_ctx; /* Unused parameter */
-	IMSG("Goodbye!\n");
+	IMSG("\n\n***** Secure water treatment process ended *****\n");
 }
 
 
@@ -161,14 +188,20 @@ static TEE_Result sod_hydrox_on(uint32_t param_types,
 	if (param_types != exp_param_types)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	IMSG("Got value: %u from NW", params[0].value.a);
-	IMSG("Got value: %u from NW", params[1].value.a);
-	IMSG("Got value: %u from NW", params[2].value.a);
-	IMSG("Got value: %u from NW", params[3].value.a);
-	params[0].value.a++;
-	IMSG("Increase value to: %u", params[0].value.a);
+	IMSG("Temperature value: 	%u from REE", params[0].value.a);
+	IMSG("pH value: 	%u from REE", params[1].value.a);
+	IMSG("Disinfectant value: 	%u from REE", params[2].value.a);
+	IMSG("Pathogen value: 		%u from REE", params[3].value.a);
 
-	IMSG("Max Temp Value is: %d", get_temp_dev_max());
+	if(true){
+		sod_hydrox_flow_is_on = 1;
+		params[0].value.a = 0;
+		params[1].value.a = get_sod_hydrox_flow();
+		params[2].value.a = 0;
+		params[3].value.a = 0;
+		IMSG("\nSodium hydroxide pump value now: %d\n", params[1].value.a);
+
+	}
 
 	return TEE_SUCCESS;
 }
@@ -179,18 +212,29 @@ static TEE_Result sod_hydrox_off(uint32_t param_types,
 	TEE_Param params[4])
 {
 	uint32_t exp_param_types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INOUT,
-						   TEE_PARAM_TYPE_NONE,
-						   TEE_PARAM_TYPE_NONE,
-						   TEE_PARAM_TYPE_NONE);
+						   TEE_PARAM_TYPE_VALUE_INOUT,
+						   TEE_PARAM_TYPE_VALUE_INOUT,
+						   TEE_PARAM_TYPE_VALUE_INOUT);
 
 	DMSG("has been called");
 
 	if (param_types != exp_param_types)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	IMSG("Got value: %u from NW", params[0].value.a);
-	params[0].value.a--;
-	IMSG("Decrease value to: %u", params[0].value.a);
+	IMSG("Temperature value: 	%u from REE", params[0].value.a);
+	IMSG("pH value: 	%u from REE", params[1].value.a);
+	IMSG("Disinfectant value: 	%u from REE", params[2].value.a);
+	IMSG("Pathogen value: 		%u from REE", params[3].value.a);
+
+	if(true){
+		sod_hydrox_flow_is_on = 0;
+		params[0].value.a = 0;
+		params[1].value.a = get_sod_hydrox_flow();
+		params[2].value.a = 0;
+		params[3].value.a = 0;
+		IMSG("\nSodium hydroxide pump value now: %d\n", params[1].value.a);
+
+	}
 
 	return TEE_SUCCESS;
 }
@@ -199,18 +243,29 @@ static TEE_Result disinfectant_on(uint32_t param_types,
 	TEE_Param params[4])
 {
 	uint32_t exp_param_types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INOUT,
-						   TEE_PARAM_TYPE_NONE,
-						   TEE_PARAM_TYPE_NONE,
-						   TEE_PARAM_TYPE_NONE);
+						   TEE_PARAM_TYPE_VALUE_INOUT,
+						   TEE_PARAM_TYPE_VALUE_INOUT,
+						   TEE_PARAM_TYPE_VALUE_INOUT);
 
 	DMSG("has been called");
 
 	if (param_types != exp_param_types)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	IMSG("Got value: %u from NW", params[0].value.a);
-	params[0].value.a+= 5;
-	IMSG("Increase value to: %u", params[0].value.a);
+	IMSG("Temperature value: 	%u from REE", params[0].value.a);
+	IMSG("pH value: 	%u from REE", params[1].value.a);
+	IMSG("Disinfectant value: 	%u from REE", params[2].value.a);
+	IMSG("Pathogen value: 		%u from REE", params[3].value.a);
+
+	if(true){
+		disinf_flow_is_on = 1;
+		params[0].value.a = 0;
+		params[1].value.a = 0;
+		params[2].value.a = get_disinf_flow();
+		params[3].value.a = 0;
+		IMSG("\nDisinfectant pump value now: %d\n", params[2].value.a);
+
+	}
 
 	return TEE_SUCCESS;
 }
@@ -221,18 +276,29 @@ static TEE_Result disinfectant_off(uint32_t param_types,
 	TEE_Param params[4])
 {
 	uint32_t exp_param_types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INOUT,
-						   TEE_PARAM_TYPE_NONE,
-						   TEE_PARAM_TYPE_NONE,
-						   TEE_PARAM_TYPE_NONE);
+						   TEE_PARAM_TYPE_VALUE_INOUT,
+						   TEE_PARAM_TYPE_VALUE_INOUT,
+						   TEE_PARAM_TYPE_VALUE_INOUT);
 
 	DMSG("has been called");
 
 	if (param_types != exp_param_types)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	IMSG("Got value: %u from NW", params[0].value.a);
-	params[0].value.a-= 5;
-	IMSG("Decrease value to: %u", params[0].value.a);
+	IMSG("Temperature value: 	%u from REE", params[0].value.a);
+	IMSG("pH value: 	%u from REE", params[1].value.a);
+	IMSG("Disinfectant value: 	%u from REE", params[2].value.a);
+	IMSG("Pathogen value: 		%u from REE", params[3].value.a);
+
+	if(true){
+		disinf_flow_is_on = 0;
+		params[0].value.a = 0;
+		params[1].value.a = 0;
+		params[2].value.a = get_disinf_flow();
+		params[3].value.a = 0;
+		IMSG("\nDisinfectant pump value now: %d\n", params[2].value.a);
+
+	}
 
 	return TEE_SUCCESS;
 }
