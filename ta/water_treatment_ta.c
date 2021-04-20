@@ -35,14 +35,14 @@ int temp_dev_min = -40;
 int temp_dev_max = 160;
 int ph_dev_min = 0;
 int ph_dev_max = 14;
-int disinf_dev_min = 0;
-int disinf_dev_max = 100;
-int pathogen_dev_min = 0;
-int pathogen_dev_max = 100;
+int acid_flow_dev_min = 0;
+int acid_flow_dev_max = 10;
+int sod_hydrox_flow_dev_min = 0;
+int sod_hydrox_flow_dev_max = 10;
 
 /* State variables for chemical solenoid valves */
 int sod_hydrox_flow_is_on = 0;
-int disinf_flow_is_on = 0;
+int acid_flow_is_on = 0;
 
 //Getters - there are no setters. Values set at compile time.
 int get_temp_dev_min()
@@ -65,24 +65,24 @@ int get_ph_dev_max()
 	return ph_dev_max;
 };
 
-int get_disinf_dev_min()
+int get_acid_flow_dev_min()
 {
-	return disinf_dev_min;
+	return acid_flow_dev_min;
 };
 
-int get_disinf_dev_max()
+int get_acid_flow_dev_max()
 {
-	return disinf_dev_max;
+	return acid_flow_dev_max;
 };
 
-int get_pathogen_dev_min()
+int get_sod_hydrox_flow_dev_min()
 {
-	return pathogen_dev_min;
+	return sod_hydrox_flow_dev_min;
 };
 
-int get_pathogen_dev_max()
+int get_sod_hydrox_flow_dev_max()
 {
-	return pathogen_dev_max;
+	return sod_hydrox_flow_dev_max;
 };
 
 int get_sod_hydrox_flow()
@@ -90,24 +90,10 @@ int get_sod_hydrox_flow()
 	return sod_hydrox_flow_is_on;
 };
 
-int get_disinf_flow()
+int get_acid_flow()
 {
-	return disinf_flow_is_on;
+	return acid_flow_is_on;
 };
-
-
-
-// int toggle_sod_hydrox_flow()
-// {
-// 	sod_hydrox_flow_is_on = !sod_hydrox_flow_is_on;
-// 	return get_sod_hydrox_flow();
-// };
-
-// int toggle_disinf_flow()
-// {
-// 	return disinf_flow_is_on = !disinf_flow_is_on;
-// };
-
 
 /*
  * Called when the instance of the TA is created. This is the first call in
@@ -126,7 +112,7 @@ TEE_Result TA_CreateEntryPoint(void)
  */
 void TA_DestroyEntryPoint(void)
 {
-	DMSG("has been called");
+	DMSG("has been called\n\n");
 }
 
 /*
@@ -157,7 +143,7 @@ TEE_Result TA_OpenSessionEntryPoint(uint32_t param_types,
 	 * The DMSG() macro is non-standard, TEE Internal API doesn't
 	 * specify any means to logging from a TA.
 	 */
-	IMSG("\n\n***** Secure water treatment process invoked *****\n");
+	IMSG("\n\n***** Secure water treatment process started *****\n");
 
 	/* If return value != TEE_SUCCESS the session will not be created. */
 	return TEE_SUCCESS;
@@ -170,10 +156,22 @@ TEE_Result TA_OpenSessionEntryPoint(uint32_t param_types,
 void TA_CloseSessionEntryPoint(void __maybe_unused *sess_ctx)
 {
 	(void)&sess_ctx; /* Unused parameter */
-	IMSG("\n\n***** Secure water treatment process ended *****\n");
+	IMSG("\n***** Secure water treatment process ended *****\n\n");
 }
 
-
+int verify_safe_bounds(int temp, int ph, int acid_flow, int sh_flow)
+{
+	if(
+		temp >= temp_dev_min && temp <= temp_dev_max && \
+		ph >= ph_dev_min && ph <= ph_dev_max && \
+		acid_flow >= acid_flow_dev_min && acid_flow <= acid_flow_dev_max && \
+		sh_flow >= sod_hydrox_flow_dev_min && sh_flow <= sod_hydrox_flow_dev_max
+	){
+		return 1;
+	}else{
+		return 0;
+	}
+}
 
 static TEE_Result sod_hydrox_on(uint32_t param_types,
 	TEE_Param params[4])
@@ -188,25 +186,33 @@ static TEE_Result sod_hydrox_on(uint32_t param_types,
 	if (param_types != exp_param_types)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	IMSG("Temperature value: 	%u from REE", params[0].value.a);
-	IMSG("pH value: 	%u from REE", params[1].value.a);
-	IMSG("Disinfectant value: 	%u from REE", params[2].value.a);
-	IMSG("Pathogen value: 		%u from REE", params[3].value.a);
+	IMSG("Temperature value:             %u from REE", params[0].value.a);
+	IMSG("pH value:                      %u from REE", params[1].value.a);
+	IMSG("Acid flow value:               %u from REE", params[2].value.a);
+	IMSG("Sodium hydroxide flow value:   %u from REE", params[3].value.a);
 
-	if(true){
-		sod_hydrox_flow_is_on = 1;
-		params[0].value.a = 0;
-		params[1].value.a = get_sod_hydrox_flow();
-		params[2].value.a = 0;
-		params[3].value.a = 0;
-		IMSG("\nSodium hydroxide pump value now: %d\n", params[1].value.a);
-
+	if (verify_safe_bounds(params[0].value.a, params[1].value.a, params[2].value.a, params[3].value.a)){
+		if(params[0].value.a > 40 && params[1].value.a < 5 && params[2].value.a == 0 && params[3].value.a == 0){
+			sod_hydrox_flow_is_on = 1;
+			params[0].value.a = 0;	//temp
+			params[1].value.a = 0;	//ph
+			params[2].value.a = 0;	//acid flow
+			params[3].value.a = get_sod_hydrox_flow();
+			IMSG("\nSetting sodium hydroxide pump value to: %d\n", params[3].value.a);
+		}else{
+			IMSG("\n***** TAI Alert - Forward Edge Failure *****\n");
+			IMSG("\n***** TAI Alert - Failed due to function arguments OOB *****\n\n");
+			IMSG("Exit process with no action taken.\n");
+		}
+		
+	}else{
+		IMSG("\n***** TAI Alert - Forward Edge Failure *****\n");
+		IMSG("\n***** TAI Alert - Failed due to device limits exceeded *****\n\n");
+		IMSG("Exit process with no action taken.\n");
 	}
-
 	return TEE_SUCCESS;
+
 }
-
-
 
 static TEE_Result sod_hydrox_off(uint32_t param_types,
 	TEE_Param params[4])
@@ -221,25 +227,35 @@ static TEE_Result sod_hydrox_off(uint32_t param_types,
 	if (param_types != exp_param_types)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	IMSG("Temperature value: 	%u from REE", params[0].value.a);
-	IMSG("pH value: 	%u from REE", params[1].value.a);
-	IMSG("Disinfectant value: 	%u from REE", params[2].value.a);
-	IMSG("Pathogen value: 		%u from REE", params[3].value.a);
+	IMSG("Temperature value:             %u from REE", params[0].value.a);
+	IMSG("pH value:                      %u from REE", params[1].value.a);
+	IMSG("Acid flow value:               %u from REE", params[2].value.a);
+	IMSG("Sodium hydroxide flow value:   %u from REE", params[3].value.a);
 
-	if(true){
-		sod_hydrox_flow_is_on = 0;
-		params[0].value.a = 0;
-		params[1].value.a = get_sod_hydrox_flow();
-		params[2].value.a = 0;
-		params[3].value.a = 0;
-		IMSG("\nSodium hydroxide pump value now: %d\n", params[1].value.a);
-
+	if (verify_safe_bounds(params[0].value.a, params[1].value.a, params[2].value.a, params[3].value.a)){
+		if(params[1].value.a >= 6 && params[3].value.a > 0){
+			sod_hydrox_flow_is_on = 0;
+			params[0].value.a = 0;
+			params[1].value.a = 0;
+			params[2].value.a = 0;
+			params[3].value.a = get_sod_hydrox_flow();
+			IMSG("\nSodium hydroxide pump value now: %d\n", params[1].value.a);
+		}else{
+			IMSG("\n***** TAI Alert - Forward Edge Failure *****\n");
+			IMSG("\n***** TAI Alert - Failed due to function arguments OOB *****\n\n");
+			IMSG("Exit process with no action taken.\n");
+		}
+		
+	}else{
+		IMSG("\n***** TAI Alert - Forward Edge Failure *****\n");
+		IMSG("\n***** TAI Alert - Failed due to device limits exceeded *****\n\n");
+		IMSG("Exit process with no action taken.\n");
 	}
 
 	return TEE_SUCCESS;
 }
 
-static TEE_Result disinfectant_on(uint32_t param_types,
+static TEE_Result acid_on(uint32_t param_types,
 	TEE_Param params[4])
 {
 	uint32_t exp_param_types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INOUT,
@@ -252,27 +268,35 @@ static TEE_Result disinfectant_on(uint32_t param_types,
 	if (param_types != exp_param_types)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	IMSG("Temperature value: 	%u from REE", params[0].value.a);
-	IMSG("pH value: 	%u from REE", params[1].value.a);
-	IMSG("Disinfectant value: 	%u from REE", params[2].value.a);
-	IMSG("Pathogen value: 		%u from REE", params[3].value.a);
+	IMSG("Temperature value:             %u from REE", params[0].value.a);
+	IMSG("pH value:                      %u from REE", params[1].value.a);
+	IMSG("Acid flow value:               %u from REE", params[2].value.a);
+	IMSG("Sodium hydroxide flow value:   %u from REE", params[3].value.a);
 
-	if(true){
-		disinf_flow_is_on = 1;
-		params[0].value.a = 0;
-		params[1].value.a = 0;
-		params[2].value.a = get_disinf_flow();
-		params[3].value.a = 0;
-		IMSG("\nDisinfectant pump value now: %d\n", params[2].value.a);
-
+	if (verify_safe_bounds(params[0].value.a, params[1].value.a, params[2].value.a, params[3].value.a)){
+		if(params[0].value.a < 90 && params[1].value.a > 9 && params[2].value.a == 0 && params[3].value.a == 0){
+			acid_flow_is_on = 1;
+			params[0].value.a = 0;
+			params[1].value.a = 0;
+			params[2].value.a = get_acid_flow();
+			params[3].value.a = 0;
+			IMSG("\nAcid pump value now: %d\n", params[2].value.a);
+		}else{
+			IMSG("\n***** TAI Alert - Forward Edge Failure *****\n");
+			IMSG("\n***** TAI Alert - Failed due to function arguments OOB *****\n\n");
+			IMSG("Exit process with no action taken.\n");
+		}
+		
+	}else{
+		IMSG("\n***** TAI Alert - Forward Edge Failure *****\n");
+		IMSG("\n***** TAI Alert - Failed due to device limits exceeded *****\n\n");
+		IMSG("Exit process with no action taken.\n");
 	}
 
 	return TEE_SUCCESS;
 }
 
-
-
-static TEE_Result disinfectant_off(uint32_t param_types,
+static TEE_Result acid_off(uint32_t param_types,
 	TEE_Param params[4])
 {
 	uint32_t exp_param_types = TEE_PARAM_TYPES(TEE_PARAM_TYPE_VALUE_INOUT,
@@ -285,26 +309,33 @@ static TEE_Result disinfectant_off(uint32_t param_types,
 	if (param_types != exp_param_types)
 		return TEE_ERROR_BAD_PARAMETERS;
 
-	IMSG("Temperature value: 	%u from REE", params[0].value.a);
-	IMSG("pH value: 	%u from REE", params[1].value.a);
-	IMSG("Disinfectant value: 	%u from REE", params[2].value.a);
-	IMSG("Pathogen value: 		%u from REE", params[3].value.a);
+	IMSG("Temperature value:             %u from REE", params[0].value.a);
+	IMSG("pH value:                      %u from REE", params[1].value.a);
+	IMSG("Acid flow value:               %u from REE", params[2].value.a);
+	IMSG("Sodium hydroxide flow value:   %u from REE", params[3].value.a);
 
-	if(true){
-		disinf_flow_is_on = 0;
-		params[0].value.a = 0;
-		params[1].value.a = 0;
-		params[2].value.a = get_disinf_flow();
-		params[3].value.a = 0;
-		IMSG("\nDisinfectant pump value now: %d\n", params[2].value.a);
-
+	if (verify_safe_bounds(params[0].value.a, params[1].value.a, params[2].value.a, params[3].value.a)){
+		if(params[1].value.a <= 8 && params[2].value.a > 0){
+			acid_flow_is_on = 0;
+			params[0].value.a = 0;
+			params[1].value.a = 0;
+			params[2].value.a = get_acid_flow();
+			params[3].value.a = 0;
+			IMSG("\nAcid pump value now: %d\n", params[2].value.a);
+		}else{
+			IMSG("\n***** TAI Alert - Forward Edge Failure *****\n");
+			IMSG("\n***** TAI Alert - Failed due to function arguments OOB *****\n\n");
+			IMSG("Exit process with no action taken.\n");
+		}
+		
+	}else{
+		IMSG("\n***** TAI Alert - Forward Edge Failure *****\n");
+		IMSG("\n***** TAI Alert - Failed due to device limits exceeded *****\n\n");
+		IMSG("Exit process with no action taken.\n");
 	}
 
 	return TEE_SUCCESS;
 }
-
-
-
 
 /*
  * Called when a TA is invoked. sess_ctx hold that value that was
@@ -323,10 +354,10 @@ TEE_Result TA_InvokeCommandEntryPoint(void __maybe_unused *sess_ctx,
 		return sod_hydrox_on(param_types, params);
 	case TA_WATER_TREATMENT_CMD_SOD_HYDROX_OFF:
 		return sod_hydrox_off(param_types, params);		
-	case TA_WATER_TREATMENT_CMD_DISINFECTANT_ON:
-		return disinfectant_on(param_types, params);
-	case TA_WATER_TREATMENT_CMD_DISINFECTANT_OFF:
-		return disinfectant_off(param_types, params);
+	case TA_WATER_TREATMENT_CMD_ACID_ON:
+		return acid_on(param_types, params);
+	case TA_WATER_TREATMENT_CMD_ACID_OFF:
+		return acid_off(param_types, params);
 	default:
 		return TEE_ERROR_BAD_PARAMETERS;
 	}
